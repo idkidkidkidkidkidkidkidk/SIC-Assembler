@@ -100,22 +100,80 @@ std::unordered_map<std::string, OP> OPTAB(
 );
 
 std::unordered_map<std::string, OP> DIRECTIVES(
-    {{"START", OP("START", 0, 0)},
-    {"BASE", OP("BASE", 0, 0)},
-    {"WORD", OP("WORD", 0, 0)},
+    {{"WORD", OP("WORD", 0, 0)},
     {"RESW", OP("RESW", 0, 0)},
     {"RESB", OP("RESB", 0, 0)},
     {"BYTE", OP("BYTE", 0, 0)},
+    {"BASE", OP("BASE", 0, 0)},
+    {"START", OP("START", 0, 0)},
     {"END", OP("END", 0, 0)}}
 );
+
+std::unordered_map<std::string, int> SYMTAB;
+
 int main(){
     ifstream source("sample/source.txt");
+    ofstream inter("out/intermediate.txt");
+    int locctr = 0;
     for(string line; getline(source, line); ){
         Instruction instruction = parse(line);
-        if(instruction.op != "")
-        cout << instruction.op << " " << instruction.format << endl;
+        if(instruction.op == "") continue;
+
+        if(instruction.op == "START"){
+            // initialize locctr and write record
+            locctr = stoi(instruction.params);
+            inter << locctr << " "
+                  << instruction.label << " "
+                  << instruction.op << " "
+                  << "#" << instruction.params << endl;
+        }
+        else{
+            // add label to symtab if there is a label
+            if(instruction.label != ""){
+                SYMTAB.insert({{instruction.label, locctr}});
+            }
+
+            // write locctr at the start of line
+            inter << locctr << " ";
+
+            // directive
+            if(instruction.format == 0){
+                if(instruction.op == "WORD") locctr += 3;
+                else if(instruction.op == "RESW") locctr += 3 * stoi(instruction.params);
+                else if(instruction.op == "RESB") locctr += 1 * stoi(instruction.params);
+                else if(instruction.op == "BYTE"){
+                    // get length of constant string
+                    switch(instruction.params[0]){
+                        case 'X':
+                            // 2 hex characters is a byte
+                            locctr += (instruction.params.length() - 2) / 2; // ceil(length - 3 / 2)
+                            break;
+                        case 'C':
+                            // 1 ascii character is a byte
+                            locctr += instruction.params.length() - 3;
+                            break;
+                        default:
+                            exit(1);
+                    }
+                }
+            }
+            // op
+            else locctr += instruction.format;
+
+            // write intermediate file
+            // write the label or an extra space for empty label
+            if(instruction.label != "") inter << instruction.label << " ";
+            else inter << "  ";
+
+            // write the op of the instruction
+            inter << instruction.op << endl;
+        }
+        
+
     }
 
+    source.close();
+    inter.close();
     return 0;
 }
 
