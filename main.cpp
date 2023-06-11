@@ -99,10 +99,20 @@ std::unordered_map<std::string, OP> OPTAB(
     {"WD", OP("WD", 0xD, 3)}}
 );
 
+std::unordered_map<std::string, OP> DIRECTIVES(
+    {{"START", OP("START", 0, 0)},
+    {"BASE", OP("BASE", 0, 0)},
+    {"WORD", OP("WORD", 0, 0)},
+    {"RESW", OP("RESW", 0, 0)},
+    {"RESB", OP("RESB", 0, 0)},
+    {"BYTE", OP("BYTE", 0, 0)},
+    {"END", OP("END", 0, 0)}}
+);
 int main(){
     ifstream source("sample/source.txt");
     for(string line; getline(source, line); ){
         Instruction instruction = parse(line);
+        if(instruction.op != "")
         cout << instruction.op << " " << instruction.format << endl;
     }
 
@@ -122,7 +132,6 @@ Instruction parse(string& line){
     while(pos != string::npos){
         fields.push_back(line.substr(startpos, pos - startpos));
         startpos = pos + 1;
-
         // handle trailing comment
         if(line[startpos] == '.') break;
 
@@ -132,24 +141,40 @@ Instruction parse(string& line){
 
     // if the first field starts with +, it's a format 4 op field
     if(fields[0][0] == '+'){
-        // no params
+        // +op [params]
         if(fields.size() <= 1) return Instruction("", fields[0].substr(1), "", 4);
-        // has params
         else return Instruction("", fields[0].substr(1), fields[1], 4);
     }
-    // otherwise check OPTAB to determine if it's a label or an op
+    // otherwise determine if first field is a label, op, or directive
     else{
-        // the first field is label
-        if(OPTAB.count(fields[0]) == 0){
-            if(fields.size() <= 2) return Instruction(fields[0], fields[1], "", OPTAB[fields[1]].format); 
-            else return Instruction(fields[0], fields[1], fields[2], 4);
-        }
-        // the first field is op
-        else{
+        if(OPTAB.count(fields[0]) > 0){
+            // op [params]
             if(fields.size() <= 1) return Instruction("", fields[0], "", OPTAB[fields[0]].format);
             else return Instruction("", fields[0], fields[1], OPTAB[fields[0]].format);
         }
+        else if(DIRECTIVES.count(fields[0]) > 0){
+            // directive [params]
+            if(fields.size() <= 1) return Instruction("", fields[0], "", 0); 
+            else return Instruction("", fields[0], fields[1], 0);
+        }
+        // the first field is label, check if second field is op or directive
+        else{
+            // check if the second field is a format 4 op
+            if(fields[1][0] == '+'){
+                // label +op [params]
+                if(fields.size() <= 2) return Instruction(fields[0], fields[1].substr(1), "", 4);
+                else return Instruction(fields[0], fields[1].substr(1), fields[2], 4);
+            }
+            else if(OPTAB.count(fields[1]) > 0){
+                // label op [params]
+                if(fields.size() <= 2) return Instruction(fields[0], fields[1], "", OPTAB[fields[1]].format);
+                else return Instruction(fields[0], fields[1], fields[2], OPTAB[fields[1]].format);
+            }
+            else{
+                // label directive [params]
+                if(fields.size() <= 2) return Instruction(fields[0], fields[1], "", 0); 
+                else return Instruction(fields[0], fields[1], fields[2], 0);
+            }
+        }
     }
-    
-    exit(0);
 }
