@@ -112,7 +112,7 @@ std::unordered_map<std::string, OP> DIRECTIVES(
 std::unordered_map<std::string, int> SYMTAB;
 
 int main(){
-    ifstream source("sample/source.txt");
+    ifstream source("sample/input.txt");
     ofstream inter("out/intermediate.txt");
     int locctr = 0;
     for(string line; getline(source, line); ){
@@ -168,10 +168,7 @@ int main(){
             // write the op of the instruction
             inter << instruction.op << endl;
         }
-        
-
     }
-
     source.close();
     inter.close();
     return 0;
