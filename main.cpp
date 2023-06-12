@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <iomanip>
 //#include "optab.hpp"
 
 using namespace std;
@@ -12,10 +13,10 @@ class OP{
 public:
     std::string op;
     int opcode;
-    short format;
+    int format;
 
     OP(){}
-    OP(std::string _op, int _opcode, short _format): op{_op},
+    OP(std::string _op, int _opcode, int _format): op{_op},
                                                      opcode{_opcode},
                                                      format{_format}{}
 };
@@ -121,6 +122,7 @@ std::unordered_map<std::string, int> SYMTAB(
 });
 
 Instruction parse(string&);
+string to_hexstring(int, int);
 vector<string> splitstring(string&, char);
 
 int main(){
@@ -183,18 +185,63 @@ int main(){
     
     // pass 2
     ifstream interread("out/intermediate.txt");
-    ofstream output("out/out.txt");
+    ofstream output("out/output.txt");
+
+    int textlen = 0; // length of current text record, max 30 (bytes)
     for(string line; getline(interread, line); ){
         vector<string> v(splitstring(line, ' '));
+        
+        // fixed format:
+        // loc label op params
+        Instruction instruction(v[1], v[2], v[3], OPTAB[v[2]].format);
+        string code = "";
 
-        // has params
-        if(v.size() == 4){
-            cout << "loc: " << v[0] << " label: " << v[1] << " op: " << v[2] << " params: " << v[3] << endl;
+        switch(instruction.format){
+            case 0:
+                // directive
+                if(instruction.op == "START"){
+
+                }
+                else if(instruction.op == "END"){
+
+                }
+                else if(instruction.op == "BYTE"){
+
+                }
+                else if(instruction.op == "WORD"){
+
+                }
+                break;
+            case 1:{
+                // format 1 [opcode (8)]
+                code += to_hexstring(OPTAB[instruction.op].opcode, 8);
+                break;
+            }
+            case 2:{
+                // format 2 [opcode (8)][r1 (4)][r2[4]]
+                code += to_hexstring(OPTAB[instruction.op].opcode, 8);
+                
+                vector<string>paramlist = splitstring(instruction.params, ',');
+                code += to_hexstring(SYMTAB[paramlist[0]], 4);
+                code += to_hexstring(SYMTAB[paramlist[1]], 4);
+                break;
+            }
+            case 3:{
+                // format 3: [opcode (6)][ni xbpe (6)][disp (12)]
+
+                break;
+            }
+
+            case 4:{
+                // format 4: [opcode (6)][ni xbpe (6)][addr (20)]
+                
+                break;
+            }
+            default:
+                exit(1);
         }
-        // no params
-        else if(v.size() == 3){
-            cout << "loc: " << v[0] << " label: " << v[1] << " op: " << v[2] << endl;
-        }
+
+        output << code;
     }
     return 0;
 }
@@ -262,4 +309,11 @@ vector<string> splitstring(string& str, char delim){
     }
     if(pos == string::npos) fields.push_back(str.substr(startpos, str.size() - startpos));
     return fields;
+}
+
+string to_hexstring(int i, int len){
+  stringstream stream;
+  stream << setfill ('0') << setw(len) 
+         << hex << i;
+  return stream.str();
 }
