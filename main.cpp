@@ -34,9 +34,8 @@ public:
                                                                      format(_format){}
 };
 
-Instruction parse(string&);
-
 // TODO: move to optab.cpp when i figure out how extern works
+// most likely wontfix
 std::unordered_map<std::string, OP> OPTAB(
     {{"ADD", OP("ADD", 0x18, 3)},
     {"ADDF", OP("ADDF", 0x58, 3)},
@@ -109,11 +108,26 @@ std::unordered_map<std::string, OP> DIRECTIVES(
     {"END", OP("END", 0, 0)}}
 );
 
-std::unordered_map<std::string, int> SYMTAB;
+std::unordered_map<std::string, int> SYMTAB(
+    {{"A", 0},
+    {"X", 1},
+    {"L", 2},
+    {"PC", 8},
+    {"SW", 9},
+    {"B", 3},
+    {"S", 4},
+    {"T", 5},
+    {"F", 6},
+});
+
+Instruction parse(string&);
+vector<string> splitstring(string&, char);
 
 int main(){
+    // pass 1
     ifstream source("sample/input.txt");
     ofstream inter("out/intermediate.txt");
+
     int locctr = 0;
     for(string line; getline(source, line); ){
         Instruction instruction = parse(line);
@@ -161,16 +175,27 @@ int main(){
             else locctr += instruction.format;
 
             // write intermediate file
-            // write the label or an extra space for empty label
-            if(instruction.label != "") inter << instruction.label << " ";
-            else inter << "  ";
-
-            // write the op of the instruction
-            inter << instruction.op << endl;
+            inter << instruction.label << " " << instruction.op << " " << instruction.params << endl;
         }
     }
     source.close();
     inter.close();
+    
+    // pass 2
+    ifstream interread("out/intermediate.txt");
+    ofstream output("out/out.txt");
+    for(string line; getline(interread, line); ){
+        vector<string> v(splitstring(line, ' '));
+
+        // has params
+        if(v.size() == 4){
+            cout << "loc: " << v[0] << " label: " << v[1] << " op: " << v[2] << " params: " << v[3] << endl;
+        }
+        // no params
+        else if(v.size() == 3){
+            cout << "loc: " << v[0] << " label: " << v[1] << " op: " << v[2] << endl;
+        }
+    }
     return 0;
 }
 
@@ -180,20 +205,7 @@ Instruction parse(string& line){
         return Instruction("", "", "", 0);
     }
 
-    vector<string> fields;
-    size_t pos = line.find(" ");
-    size_t startpos = 0;
-
-    while(pos != string::npos){
-        fields.push_back(line.substr(startpos, pos - startpos));
-        startpos = pos + 1;
-        // handle trailing comment
-        if(line[startpos] == '.') break;
-
-        pos = line.find(" ", startpos);
-    }
-    if(pos == string::npos) fields.push_back(line.substr(startpos, line.size() - startpos));
-
+    vector<string> fields(splitstring(line, ' '));
     // if the first field starts with +, it's a format 4 op field
     if(fields[0][0] == '+'){
         // +op [params]
@@ -232,4 +244,22 @@ Instruction parse(string& line){
             }
         }
     }
+}
+
+// also deals with trailing comments (i know this is bad practice im sorry)
+vector<string> splitstring(string& str, char delim){
+    vector<string> fields;
+    size_t pos = str.find(" ");
+    size_t startpos = 0;
+
+    while(pos != string::npos){
+        fields.push_back(str.substr(startpos, pos - startpos));
+        startpos = pos + 1;
+        // handle trailing comment
+        if(str[startpos] == '.') break;
+
+        pos = str.find(" ", startpos);
+    }
+    if(pos == string::npos) fields.push_back(str.substr(startpos, str.size() - startpos));
+    return fields;
 }
